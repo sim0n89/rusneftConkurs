@@ -3,7 +3,7 @@ from telebot import types
 from telebot import TeleBot
 from config import TOKEN
 import asyncio
-import aiohttp
+
 from db import User, Check, Winner
 from config import DB_USER, passwd, host, port, database, winner_count
 from sqlalchemy import create_engine, select
@@ -58,17 +58,17 @@ def take_part(message):
     s = session()
     last_check = s.query(Check.date_add).filter(User.tlg_id == message.from_user.id, User.id == Check.u_id).order_by(desc(Check.id)).first()
     time_now = datetime.datetime.now()
-    # if last_check:
-        # if (time_now - last_check[0]).total_seconds()/60/60 > 5:
-    bot.send_message(message.from_user.id, """\
-            Введите номер чека
-        """, reply_markup=types.ReplyKeyboardRemove())
-    s.query(User).filter_by(tlg_id=message.from_user.id).update({"status": 'take_check'})
+    if last_check:
+        if (time_now - last_check[0]).total_seconds()/60/60 > 5:
+            bot.send_message(message.from_user.id, """\
+                    Введите номер чека
+                """, reply_markup=types.ReplyKeyboardRemove())
+            s.query(User).filter_by(tlg_id=message.from_user.id).update({"status": 'take_check'})
 
-        # else:
-        #     await bot.send_message(message.from_user.id, """\
-        #         Вы отправили чек на розыгрыш меньше 5 часов назад, пожалуйста подождите и попробуйте еще раз,
-        #         """, )
+        else:
+            bot.send_message(message.from_user.id, """\
+                Вы отправили чек на розыгрыш меньше 5 часов назад, пожалуйста подождите и попробуйте еще раз,
+                """, )
 
 
 
@@ -147,21 +147,21 @@ def get_winners():
     for winner in s.query(Winner.u_id).filter(Winner.date_add > weekAgo):
         last_winners.append(winner[0])
 
-    checks500 = s.query(Check.id,Check.check_number, Check.u_id, Check.sum).filter(Check.date_add > d, Check.sum<=500)
+    checks500 = s.query(Check.id,Check.check_number, Check.u_id, Check.sum).filter(Check.date_add > d, Check.sum<=1000)
     arrChecks500 = get_arrCheks(checks500)
 
-    checks1000 = s.query(Check.id,Check.check_number, Check.u_id, Check.sum).filter(Check.date_add > d, Check.sum > 500, Check.sum <= 1000)
+    checks1000 = s.query(Check.id,Check.check_number, Check.u_id, Check.sum).filter(Check.date_add > d, Check.sum > 1000, Check.sum <= 2000)
     arrChecks1000 = get_arrCheks(checks1000)
 
-    checks2000 = s.query(Check.id, Check.check_number, Check.u_id, Check.sum).filter(Check.date_add > d,  Check.sum>1000)
+    checks2000 = s.query(Check.id, Check.check_number, Check.u_id, Check.sum).filter(Check.date_add > d,  Check.sum>2000)
     arrChecks2000 = get_arrCheks(checks2000)
 
 
     n=0
     win500 = []
     if arrChecks500 and len(arrChecks500)>0:
-        if len(arrChecks500)>5:
-            n = 5
+        if len(arrChecks500)>3:
+            n = 3
         else:
             n = len(arrChecks500)
         win500 = get_winarr(n, arrChecks500, last_winners)
@@ -169,8 +169,8 @@ def get_winners():
     n = 0
     win1000=[]
     if arrChecks1000 and len(arrChecks1000)>0:
-        if len(arrChecks1000)>7:
-            n = 7
+        if len(arrChecks1000)>12:
+            n = 12
         else:
             n = len(arrChecks1000)
         win1000 = get_winarr(n, arrChecks1000, last_winners)
@@ -242,8 +242,8 @@ if __name__ == '__main__':
 
 
     while True:
-        print(datetime.datetime.now())
-        get_winners()
+        # print(datetime.datetime.now())
+        # get_winners()
         try:
             bot.polling(none_stop=False,interval=1)
         except Exception as E:
