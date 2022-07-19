@@ -3,7 +3,7 @@ from config import TOKEN
 import asyncio
 from db import User, Check, Winner
 from config import DB_USER, passwd, host, port, database, winner_count
-from sqlalchemy import create_engine, select,desc
+from sqlalchemy import create_engine, select, desc
 from sqlalchemy.orm import sessionmaker
 import traceback
 import datetime
@@ -45,28 +45,28 @@ def start_keyboard():
 
 @bot.message_handler(func=lambda message: message.text == "Учавствовать в розыгрыше")
 async def take_part(message):
-
+    print(message)
     s = session()
     last_check = s.query(Check.date_add).filter(User.tlg_id == message.from_user.id, User.id == Check.u_id).order_by(
         desc(Check.id)).first()
     time_now = datetime.datetime.now()
 
-    # if last_check:
-    #     if (time_now - last_check[0]).total_seconds() / 60 / 60 > 5:
-    #         await bot.send_message(message.from_user.id, """\
-    #                 Введите номер чека
-    #             """, reply_markup=types.ReplyKeyboardRemove())
-    #         s.query(User).filter_by(tlg_id=message.from_user.id).update({"status": 'take_check'})
-    #
-    #     else:
-    #         await bot.send_message(message.from_user.id, """\
-    #             Вы отправили чек на розыгрыш меньше 5 часов назад, пожалуйста подождите и попробуйте еще раз,
-    #             """, )
-    # else:
-    await bot.send_message(message.from_user.id, """\
-                       Введите номер чека
-                   """, reply_markup=types.ReplyKeyboardRemove())
-    s.query(User).filter_by(tlg_id=message.from_user.id).update({"status": 'take_check'})
+    if last_check:
+        if (time_now - last_check[0]).total_seconds() / 60 / 60 > 1:
+            await bot.send_message(message.from_user.id, """\
+                    Введите номер чека
+                """, reply_markup=types.ReplyKeyboardRemove())
+            s.query(User).filter_by(tlg_id=message.from_user.id).update({"status": 'take_check'})
+
+        else:
+            await bot.send_message(message.from_user.id, """\
+                Вы отправили чек на розыгрыш меньше 1 часа назад, пожалуйста подождите и попробуйте еще раз,
+                """, )
+    else:
+        await bot.send_message(message.from_user.id, """\
+                           Введите номер чека
+                       """, reply_markup=types.ReplyKeyboardRemove())
+        s.query(User).filter_by(tlg_id=message.from_user.id).update({"status": 'take_check'})
 
     s.commit()
     s.close()
@@ -78,7 +78,7 @@ async def handle_text(message):
     status = s.query(User.id, User.status).filter_by(tlg_id=message.from_user.id).first()
 
     if status[1] == 'take_check':
-        if len(message.text)==4:
+        if len(message.text) == 4:
 
             check = s.query(Check.check_number).filter(Check.check_number == message.text).first()
             if check == None:
@@ -99,7 +99,7 @@ async def handle_text(message):
 
 
     elif status[1] == 'take_summ':
-        if message.text.isdigit() and len(message.text)<=5:
+        if message.text.isdigit() and len(message.text) <= 4:
 
             try:
                 s.query(Check).filter(Check.u_id == status[0], Check.sum == 0).update({"sum": int(message.text)})
@@ -111,8 +111,10 @@ async def handle_text(message):
                 # await bot.send_message(message.from_user.id, f"""\
                 #      Ваш чек № {str(check[0])} на сумму {message.text}₽ добавлен на участие в розыгрыш
                 #  """, reply_markup=start_keyboard())
-
-                await get_win(message.from_user.id, int(message.text), s, str(check[0]), status[0], message.from_user.username)
+                username = f"@{message.from_user.username}"
+                if message.from_user.username is None:
+                    username = f'{message.from_user.first_name} {message.from_user.last_name} chat_id = {message.from_user.id}'
+                await get_win(message.from_user.id, int(message.text), s, str(check[0]), status[0], username)
 
                 s.query(User).filter_by(tlg_id=message.from_user.id).update({"status": ''})
             except Exception:
@@ -127,7 +129,6 @@ async def handle_text(message):
     else:
         await  bot.delete_message(message.from_user.id, message.message_id)
 
-
     try:
         s.commit()
     except:
@@ -136,27 +137,26 @@ async def handle_text(message):
         s.close()
 
 
-
 async def get_win(tlg_id, sum, s, check_num, u_id, username):
-
-
-    if sum<1000:
+    if sum < 1000:
         ever = 15
-        checks = s.query(Check.check_number, Check.sum).filter(Check.sum<1000, Check.date_add>=datetime.date.today()).count()
+        checks = s.query(Check.check_number, Check.sum).filter(Check.sum < 1000,
+                                                               Check.date_add >= datetime.date.today()).count()
 
-    elif sum>=1000 and sum<2000:
-        checks = s.query(Check.check_number, Check.sum).filter(Check.sum >= 1000, Check.sum<2000, Check.date_add>=datetime.date.today()).count()
+    elif sum >= 1000 and sum < 2000:
+        checks = s.query(Check.check_number, Check.sum).filter(Check.sum >= 1000, Check.sum < 2000,
+                                                               Check.date_add >= datetime.date.today()).count()
         ever = 10
-    elif sum>=2000:
-        checks = s.query(Check.check_number, Check.sum).filter(Check.sum >= 2000, Check.date_add>=datetime.date.today()).count()
+    elif sum >= 2000:
+        checks = s.query(Check.check_number, Check.sum).filter(Check.sum >= 2000,
+                                                               Check.date_add >= datetime.date.today()).count()
         ever = 5
-
 
     if checks % ever == 0:
         await  bot.send_photo(tlg_id, 'https://proma-group.ru/rusneft.jpg', caption="""\
     <b>ВЫ ВЫИГРАЛИ 20 ЛИТРОВ!
       ПОЗДРАВЛЯЕМ!</b>
-      
+
 Выигрыш можно забрать СРАЗУ или в течение 96 часов (4 суток) с момента покупки топлива (исчисляется согласно времени, указанному на чеке) по адресам 
 АЗС «РУСЬНЕФТЬ»:
 Курск, ул Семеновская 64 
@@ -173,21 +173,20 @@ async def get_win(tlg_id, sum, s, check_num, u_id, username):
 Вы  - получаете дополнительно 10 литров к  выигрышным 20 литрам!
 
 Для получения топлива по Акции не забывайте взять с собой выигрышный чек!
-""", reply_markup=start_keyboard(),parse_mode='html' )
+""", reply_markup=start_keyboard(), parse_mode='html')
         new_winner = Winner(u_id=u_id)
         s.add(new_winner)
 
-
         await bot.send_message("-1001696174650", f'Выиграл чек номер <b>{check_num}</b> на сумму {sum}',
-                               parse_mode='html') # Русьнефть
+                               parse_mode='html')  # Русьнефть
         await bot.send_message("-1001159770221", f'Выиграл чек номер <b>{check_num}</b> на сумму {sum}',
-                               parse_mode='html') # Любаж
+                               parse_mode='html')  # Любаж
 
         await bot.send_message("-1001660063532",
-                               f'Выиграл чек номер <b>{check_num}</b> на сумму {sum} пользователь @{username}',
+                               f'Выиграл чек номер <b>{check_num}</b> на сумму {sum} пользователь {username}',
                                parse_mode='html')  # Группа АЗС Семеновская
         await bot.send_message("-1001659700171",
-                               f'Выиграл чек номер <b>{check_num}</b> на сумму {sum} пользователь @{username}',
+                               f'Выиграл чек номер <b>{check_num}</b> на сумму {sum} пользователь {username}',
                                parse_mode='html')  # Группа АЗС Любаж
 
 
@@ -215,8 +214,6 @@ async def get_win(tlg_id, sum, s, check_num, u_id, username):
                                f'Учавствовал чек номер <b>{check_num}</b> на сумму {sum} пользователь @{username}',
                                parse_mode='html')  # Группа АЗС Любаж
     return
-
-
 
 
 if __name__ == '__main__':
