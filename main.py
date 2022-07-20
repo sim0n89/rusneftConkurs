@@ -12,7 +12,7 @@ from telebot.async_telebot import AsyncTeleBot
 bot = AsyncTeleBot(TOKEN)
 
 conn = "mysql+mysqlconnector://{0}:{1}@{2}:{3}/{4}".format(DB_USER, passwd, host, port, database)
-engine = create_engine(conn, pool_recycle=3600)
+engine = create_engine(conn, pool_recycle=1800)
 session = sessionmaker(bind=engine)
 
 
@@ -108,13 +108,12 @@ async def handle_text(message):
                     .filter(Check.u_id == status[0]) \
                     .order_by(desc(Check.id)).first()
 
-                # await bot.send_message(message.from_user.id, f"""\
-                #      Ваш чек № {str(check[0])} на сумму {message.text}₽ добавлен на участие в розыгрыш
-                #  """, reply_markup=start_keyboard())
                 username = f"@{message.from_user.username}"
                 if message.from_user.username is None:
-                    username = f'{message.from_user.first_name} {message.from_user.last_name} chat_id = {message.from_user.id}'
-                await get_win(message.from_user.id, int(message.text), s, str(check[0]), status[0], username)
+                    username = f'chat_id = {message.from_user.id}'
+                else:
+                    username = f"@{message.from_user.username}"
+                await get_win(message.from_user.id, int(message.text), str(check[0]), status[0], username)
 
                 s.query(User).filter_by(tlg_id=message.from_user.id).update({"status": ''})
             except Exception:
@@ -137,7 +136,8 @@ async def handle_text(message):
         s.close()
 
 
-async def get_win(tlg_id, sum, s, check_num, u_id, username):
+async def get_win(tlg_id, sum, check_num, u_id, username):
+    s = session()
     if sum < 1000:
         ever = 15
         checks = s.query(Check.check_number, Check.sum).filter(Check.sum < 1000,
@@ -213,6 +213,8 @@ async def get_win(tlg_id, sum, s, check_num, u_id, username):
         await bot.send_message("-1001659700171",
                                f'Учавствовал чек номер <b>{check_num}</b> на сумму {sum} пользователь @{username}',
                                parse_mode='html')  # Группа АЗС Любаж
+    s.commit()
+    s.close()
     return
 
 

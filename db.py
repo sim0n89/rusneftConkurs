@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Float
+from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Float, BigInteger
 from sqlalchemy.ext.declarative import  declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import create_engine
@@ -13,7 +13,7 @@ Base = declarative_base()
 class User(Base):
     __tablename__ = 'users'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    tlg_id = Column(Integer)
+    tlg_id = Column(BigInteger)
     status = Column(String(20), nullable=True)
     def __repr__(self):
         return "<User ('%s', '%s')>" % (self.id, self.tlg_id)
