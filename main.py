@@ -37,10 +37,14 @@ async def send_welcome(message):
     s.close()
 
 
+
+
 def start_keyboard():
     keyboard_start = types.ReplyKeyboardMarkup(resize_keyboard=True)
     keyboard_start.row(types.KeyboardButton(text="Учавствовать в розыгрыше"))
     return keyboard_start
+
+
 
 
 @bot.message_handler(func=lambda message: message.text == "Учавствовать в розыгрыше")
@@ -77,56 +81,71 @@ async def handle_text(message):
     s = session()
     status = s.query(User.id, User.status).filter_by(tlg_id=message.from_user.id).first()
 
-    if status[1] == 'take_check':
-        if len(message.text) == 4:
+    try:
+        print(message.chat.id, status)
 
-            check = s.query(Check.check_number).filter(Check.check_number == message.text).first()
-            if check == None:
-                newCheck = Check(u_id=status[0], check_number=message.text)
-                s.add(newCheck)
-                s.query(User).filter_by(id=status[0]).update({"status": "take_summ"})
-                await bot.send_message(message.from_user.id, """\
-                    Введите сумму чека (Если введенная сумма не совпадает с суммой на чеке, то выигрыш аннулируется)
-                """)
-            else:
-                await  bot.send_message(message.from_user.id, """\
-                              Такой чек уже учавствует в розыгрыше, измените номер, попробуйте еще раз
-                          """, reply_markup=start_keyboard())
-                s.query(User).filter_by(tlg_id=message.from_user.id).update({"status": ''})
-        else:
-            await  bot.send_message(message.from_user.id, """\
-                Номер чека состоит из четырех цифр""")
+        if status is not None:
+            if status[1] == 'take_check':
+                if len(message.text) == 4:
 
-
-    elif status[1] == 'take_summ':
-        if message.text.isdigit() and len(message.text) <= 4:
-
-            try:
-                s.query(Check).filter(Check.u_id == status[0], Check.sum == 0).update({"sum": int(message.text)})
-                s.flush()
-                check = s.query(Check.check_number, Check.sum) \
-                    .filter(Check.u_id == status[0]) \
-                    .order_by(desc(Check.id)).first()
-
-                username = f"@{message.from_user.username}"
-                if message.from_user.username is None:
-                    username = f'chat_id = {message.from_user.id}'
+                    check = s.query(Check.check_number).filter(Check.check_number == message.text).first()
+                    if check == None:
+                        newCheck = Check(u_id=status[0], check_number=message.text)
+                        s.add(newCheck)
+                        s.commit()
+                        s.query(User).filter_by(id=status[0]).update({"status": "take_summ"})
+                        await bot.send_message(message.from_user.id, """\
+                            Введите сумму чека (Если введенная сумма не совпадает с суммой на чеке, то выигрыш аннулируется)
+                        """)
+                    else:
+                        await  bot.send_message(message.from_user.id, """\
+                                      Такой чек уже учавствует в розыгрыше, измените номер, попробуйте еще раз
+                                  """, reply_markup=start_keyboard())
+                        s.query(User).filter_by(tlg_id=message.from_user.id).update({"status": ''})
                 else:
-                    username = f"@{message.from_user.username}"
-                await get_win(message.from_user.id, int(message.text), str(check[0]), status[0], username)
+                    await  bot.send_message(message.from_user.id, """\
+                        Номер чека состоит из четырех цифр""")
 
-                s.query(User).filter_by(tlg_id=message.from_user.id).update({"status": ''})
-            except Exception:
-                traceback.print_exc()
-                await  bot.send_message(message.from_user.id, f"""\
-                                                 Недопустимое значение, попробуйте еще раз
-                                             """)
+
+            elif status[1] == 'take_summ':
+                if message.text.isdigit() and len(message.text) <= 4 and int(message.text) > 0:
+
+                    try:
+                        s.query(Check).filter(Check.u_id == status[0], Check.sum == 0).update(
+                            {"sum": int(message.text)})
+                        s.flush()
+                        check = s.query(Check.check_number, Check.sum) \
+                            .filter(Check.u_id == status[0]) \
+                            .order_by(desc(Check.id)).first()
+
+                        username = f"@{message.from_user.username}"
+                        if message.contact is not None:
+                            print(message.contact.phone_number)
+                        if message.from_user.username is None:
+                            username = f'chat_id = {message.from_user.id}'
+                        else:
+                            username = f"@{message.from_user.username}"
+                        if message.contact is not None:
+                            print(message.contact.phone_number)
+                            # username = username + ' телефон '
+                        await get_win(message.from_user.id, int(message.text), str(check[0]), status[0], username)
+
+                        s.query(User).filter_by(tlg_id=message.from_user.id).update({"status": ''})
+                    except Exception:
+                        traceback.print_exc()
+                        await  bot.send_message(message.from_user.id, f"""\
+                                                         Недопустимое значение, попробуйте еще раз
+                                                     """)
+                else:
+                    await  bot.send_message(message.from_user.id, f"""\
+                                         Недопустимое значение, попробуйте еще раз
+                                     """)
+            else:
+                await  bot.delete_message(message.from_user.id, message.message_id)
         else:
-            await  bot.send_message(message.from_user.id, f"""\
-                                 Недопустимое значение, попробуйте еще раз
-                             """)
-    else:
-        await  bot.delete_message(message.from_user.id, message.message_id)
+            await bot.delete_message(message.from_user.id, message.message_id)
+    except:
+        traceback.print_exc()
 
     try:
         s.commit()
