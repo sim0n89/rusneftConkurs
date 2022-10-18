@@ -3,7 +3,7 @@ from db import User, Votes, UserVote
 from config import DB_USER, passwd, host, port, database
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
+import datetime
 from telebot import  types
 
 conn = "mysql+mysqlconnector://{0}:{1}@{2}:{3}/{4}?unix_socket=/var/run/mysqld/mysqld.sock".format(DB_USER, passwd,
@@ -26,16 +26,16 @@ def makeVoteToChat():
     vote = s.query(Votes).order_by(Votes.id.desc()).first()
     keyboard = types.InlineKeyboardMarkup()
 
-    btnfirst = types.InlineKeyboardButton(str(vote.quest1) + "\xa00", callback_data="quest1")
-    btndec2 = types.InlineKeyboardButton(str(vote.quest2) + "\xa00", callback_data="quest2")
-    btndec3 = types.InlineKeyboardButton(str(vote.quest3) + "\xa00", callback_data="quest3")
-    btndec4 = types.InlineKeyboardButton(str(vote.quest4) + "\xa00", callback_data="quest4")
-    btndec5 = types.InlineKeyboardButton(str(vote.quest5) + "\xa00", callback_data="quest5")
-    btndec6 = types.InlineKeyboardButton(str(vote.quest6) + "\xa00", callback_data="quest6")
-    btndec7 = types.InlineKeyboardButton(str(vote.quest6) + "\xa00", callback_data="quest7")
-    btndec8 = types.InlineKeyboardButton(str(vote.quest6) + "\xa00", callback_data="quest8")
-    btndec9 = types.InlineKeyboardButton(str(vote.quest6) + "\xa00", callback_data="quest9")
-    btndec10 = types.InlineKeyboardButton(str(vote.quest6) + "\xa00", callback_data="quest10")
+    btnfirst = types.InlineKeyboardButton(str(vote.quest1) + "\xa0(0)", callback_data="quest1")
+    btndec2 = types.InlineKeyboardButton(str(vote.quest2) + "\xa0(0)", callback_data="quest2")
+    btndec3 = types.InlineKeyboardButton(str(vote.quest3) + "\xa0(0)", callback_data="quest3")
+    btndec4 = types.InlineKeyboardButton(str(vote.quest4) + "\xa0(0)", callback_data="quest4")
+    btndec5 = types.InlineKeyboardButton(str(vote.quest5) + "\xa0(0)", callback_data="quest5")
+    btndec6 = types.InlineKeyboardButton(str(vote.quest6) + "\xa0(0)", callback_data="quest6")
+    btndec7 = types.InlineKeyboardButton(str(vote.quest7) + "\xa0(0)", callback_data="quest7")
+    btndec8 = types.InlineKeyboardButton(str(vote.quest8) + "\xa0(0)", callback_data="quest8")
+    btndec9 = types.InlineKeyboardButton(str(vote.quest9) + "\xa0(0)", callback_data="quest9")
+    # btndec10 = types.InlineKeyboardButton(str(vote.quest6) + "\xa0(0)", callback_data="quest10")
     keyboard.add(btnfirst,btndec2, btndec3, btndec4, btndec5, btndec6, btndec7, btndec8, btndec9)
     vote = {'message': vote.theme, 'keyboard': keyboard}
     return vote
@@ -49,8 +49,8 @@ def editVoteKeyboard(question, json):
 
             if question in button['callback_data']:
                 splitted = button['text'].split('\xa0')
-                summ = int(splitted[-1]) + 1
-                button["text"] = button['text'] = splitted[0] + "\xa0" + str(summ)
+                summ = int(splitted[-1].replace("(", '').replace(")", '')) + 1
+                button["text"] = button['text'] = splitted[0] + "\xa0" + "(" + str(summ) + ")"
             btns.append(button)
     btn0 = types.InlineKeyboardButton(str(btns[0]['text']), callback_data=str(btns[0]["callback_data"]))
     btn1 = types.InlineKeyboardButton(str(btns[1]['text']), callback_data=str(btns[1]["callback_data"]))
@@ -65,15 +65,19 @@ def editVoteKeyboard(question, json):
     keyboard.add(btn0, btn1, btn2, btn3, btn4, btn5, btn6, btn7, btn8)
     return keyboard
 
-def check_uservote(user, chat, msg):
+def check_uservote(user, chat, msg, from_user):
     s = session()
+    print(type(str()))
     count = s.query(UserVote).filter_by(tg_id=user, chat_id=chat, message_id=msg).count()
     if count == 0:
-        newVote = UserVote(tg_id=user, chat_id=chat, message_id=msg)
+        newVote = UserVote(tg_id=user, chat_id=chat, message_id=msg, from_user=str(from_user),date_add=datetime.datetime.now())
         s.add(newVote)
         s.commit()
+        s.close()
         return True
+
     else:
+        s.close()
         return False
 
 

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, DateTime, Float, BigInteger
+from sqlalchemy import Column, ForeignKey, Integer, String,Text, DateTime, Float, BigInteger
 from sqlalchemy.ext.declarative import  declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import create_engine
@@ -6,7 +6,8 @@ from config import host, DB_USER, passwd, database, port
 import datetime
 
 
-conn = "mysql+mysqlconnector://{0}:{1}@{2}:{3}/{4}".format(DB_USER, passwd, host, port, database)
+conn = "mysql+mysqlconnector://{0}:{1}@{2}:{3}/{4}?unix_socket=/var/run/mysqld/mysqld.sock".format(DB_USER, passwd,
+                                                                                                   host, port, database)
 engine = create_engine(conn)
 Base = declarative_base()
 
@@ -37,7 +38,7 @@ class Votes(Base):
     __tablename__='votes'
     id = Column(Integer, primary_key=True, autoincrement=True)
     date_add = Column(DateTime, default=datetime.datetime.now())
-    theme = Column(String(255))
+    theme = Column(Text(1000))
     quest1 = Column(String(255))
     quest2 = Column(String(255))
     quest3 = Column(String(255))
@@ -61,6 +62,7 @@ class UserVote(Base):
     tg_id = Column(BigInteger)
     chat_id = Column(String(50))
     message_id = Column(BigInteger)
+    from_user = Column(Text(1000))
 
     def __repr__(self):
         return "('%s', '%s','%s', '%s', '%s')" % (self.id, self.date_add, self.tg_id, self.chat_id, self.message_id)
